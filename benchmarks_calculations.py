@@ -117,31 +117,29 @@ benchmarks = campaign_df.groupby(group_cols).agg(agg_dict)
 benchmarks.columns = ['_'.join(col).strip() for col in benchmarks.columns.values]
 benchmarks = benchmarks.reset_index()
 
-# Renombrar las columnas de la métrica QCPM para mostrar el nombre deseado (sin _calculated)
+# Renombrar las columnas para que queden en el formato deseado:
+# Se renombra "source_median" a "output_median" y "source_mad" a "MAD_output"
 for output_name, source_name in metrics:
-    if source_name != output_name:
-        benchmarks.rename(columns={
-            f"{source_name}_median": f"{output_name}_median",
-            f"MAD_{source_name}": f"MAD_{output_name}",
-            f"adjusted_{source_name}": f"adjusted_{output_name}"
-        }, inplace=True)
+    benchmarks.rename(columns={
+        f"{source_name}_median": f"{output_name}_median",
+        f"{source_name}_mad": f"MAD_{output_name}"
+    }, inplace=True)
 
 # Calcular las métricas ajustadas sumando la mediana y el MAD para cada métrica
 for output_name, source_name in metrics:
     col_median = f"{output_name}_median"
     col_mad = f"MAD_{output_name}"
-    # Si no existe aún la columna "adjusted_", se crea; en caso contrario se actualiza
     benchmarks[f"adjusted_{output_name}"] = benchmarks[col_median] + benchmarks[col_mad]
 
 # ==========================
 # Preparación de Datos para Exportación
 # ==========================
 
-# Para la exportación, creamos una lista con los nombres de las métricas de salida
+# Lista de nombres de métricas de salida (ya renombradas)
 output_metrics = [output_name for output_name, _ in metrics]
 
 # Hoja 1: Benchmark Ajustado (solo columnas de valores ajustados)
-# Se incluye también las columnas de agrupación.
+# Se incluyen también las columnas de agrupación.
 adjusted_cols = [f"adjusted_{metric}" for metric in output_metrics]
 benchmark_adjusted = benchmarks[group_cols + adjusted_cols].copy()
 # Renombrar las columnas ajustadas para quitar el prefijo 'adjusted_'
