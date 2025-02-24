@@ -91,44 +91,79 @@ campaign_df['QCPM_calculated'] = np.where(
 # ==========================
 # Agrupación y Cálculo de Benchmarks
 # ==========================
-
-# Se define el criterio de agrupación
+# Definir las columnas de agrupación
 group_cols = ['PLATFORM', 'STAGE', 'FORMAT']
 
-# Lista de métricas para las cuales se calcularán la mediana y el MAD
-metrics = ['CPM', 'VIEWABILITY', 'CVTR', 'CTR', 'ER', 'QCPM_calculated']
+# Definir las métricas mediante un mapeo: (nombre_output, nombre_origen)
+# Para QCPM se usa "QCPM_calculated" internamente, pero se mostrará como "QCPM"
+metrics = [
+    ('CPM', 'CPM'),
+    ('VIEWABILITY', 'VIEWABILITY'),
+    ('CVTR', 'CVTR'),
+    ('CTR', 'CTR'),
+    ('ER', 'ER'),
+    ('QCPM', 'QCPM_calculated')
+]
 
-# Se crea un diccionario para la agregación, asignando a cada métrica
-# las funciones de mediana y la función mad definida.
+# Crear diccionario de agregación: para cada métrica se calculará la mediana y el MAD
 agg_dict = {}
-for metric in metrics:
-    agg_dict[metric] = ['median', mad]
+for output_name, source_name in metrics:
+    agg_dict[source_name] = ['median', mad]
 
-# Se agrupa el DataFrame original utilizando los criterios definidos
+# Agrupar el DataFrame original y aplicar las funciones de agregación definidas
 benchmarks = campaign_df.groupby(group_cols).agg(agg_dict)
 
-# Se aplanan las columnas del DataFrame resultante (se creó un MultiIndex en columnas)
+# Aplanar las columnas del DataFrame resultante (MultiIndex) para obtener nombres simples
 benchmarks.columns = ['_'.join(col).strip() for col in benchmarks.columns.values]
 benchmarks = benchmarks.reset_index()
 
-# Renombramos las columnas para mayor claridad
-for metric in metrics:
-    benchmarks.rename(columns={
-        f"{metric}_median": f"{metric}_median",
-        f"{metric}_mad": f"MAD_{metric}"
-    }, inplace=True)
-    
-# Calcular las métricas ajustadas sumando la mediana y el MAD
-for metric in metrics:
-    benchmarks[f"adjusted_{metric}"] = benchmarks[f"{metric}_median"] + benchmarks[f"MAD_{metric}"]
+# Renombrar las columnas de la métrica QCPM para mostrar el nombre deseado (sin _calculated)
+for output_name, source_name in metrics:
+    if source_name != output_name:
+        benchmarks.rename(columns={
+            f"{source_name}_median": f"{output_name}_median",
+            f"MAD_{source_name}": f"MAD_{output_name}",
+            f"adjusted_{source_name}": f"adjusted_{output_name}"
+        }, inplace=True)
+
+# Calcular las métricas ajustadas sumando la mediana y el MAD para cada métrica
+for output_name, source_name in metrics:
+    col_median = f"{output_name}_median"
+    col_mad = f"MAD_{output_name}"
+    # Si no existe aún la columna "adjusted_", se crea; en caso contrario se actualiza
+    benchmarks[f"adjusted_{output_name}"] = benchmarks[col_median] + benchmarks[col_mad]
 
 # ==========================
-# Exportación de Resultados
+# Preparación de Datos para Exportación
 # ==========================
 
+# Para la exportación, creamos una lista con los nombres de las métricas de salida
+output_metrics = [output_name for output_name, _ in metrics]
+
+# Hoja 1: Benchmark Ajustado (solo columnas de valores ajustados)
+# Se incluye también las columnas de agrupación.
+adjusted_cols = [f"adjusted_{metric}" for metric in output_metrics]
+benchmark_adjusted = benchmarks[group_cols + adjusted_cols].copy()
+# Renombrar las columnas ajustadas para quitar el prefijo 'adjusted_'
+rename_dict = {f"adjusted_{metric}": metric for metric in output_metrics}
+benchmark_adjusted.rename(columns=rename_dict, inplace=True)
+
+# Hoja 2: Benchmark Completo (con columnas organizadas: mediana, MAD y ajustado para cada métrica)
+# Se crea un listado ordenado de columnas: primero las de agrupación y luego para cada métrica sus tres columnas.
+ordered_cols = group_cols.copy()
+for metric in output_metrics:
+    ordered_cols.extend([f"{metric}_median", f"MAD_{metric}", f"adjusted_{metric}"])
+benchmark_complete = benchmarks[ordered_cols].copy()
+
+# ==========================
+# Exportación a Excel
+# ==========================
 output_file = "benchmarks_results.xlsx"
 with pd.ExcelWriter(output_file, engine='openpyxl') as writer:
-    benchmarks.to_excel(writer, sheet_name='Benchmarks', index=False)
+    # Exportar hoja 1: Benchmark Ajustado y limpio
+    benchmark_adjusted.to_excel(writer, sheet_name='Benchmark Ajustado', index=False)
+    # Exportar hoja 2: Benchmark Completo y organizado
+    benchmark_complete.to_excel(writer, sheet_name='Benchmark Completo', index=False)
 
 print(f"\nEl archivo de benchmarks ha sido guardado como '{output_file}'")
 files.download(output_file)
