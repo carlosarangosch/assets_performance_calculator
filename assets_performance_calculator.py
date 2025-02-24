@@ -364,7 +364,7 @@ campaign_summary['z_score'] = (campaign_summary['median_score'] - campaign_summa
 # =============================================================================
 # 9. Exportación de Resultados a Excel
 # =============================================================================
-# Definir columnas para Hoja 1 (Assets); se incluyen los _rank_raw para referencia
+# Definir columnas para Hoja 1 (Assets)
 base_columns = [
     'MONTH', 'PLATFORM', 'CREATIVE_ID', 'CREATIVE_NAME', 'CAMPAIGN', 'BRAND',
     'STAGE', 'AUDIENCE', 'FORMAT', 'CATEGORY', 'PURCHASE_TYPE',
@@ -372,15 +372,32 @@ base_columns = [
     'INTERACTIONS', 'SHARES', 'REACH', 'MEDIA_SPEND', 'CPM', 'VTR',
     'CVTR', 'CTR', 'ER', 'VIEWABILITY'
 ]
+
+# Se reorganiza el output de la siguiente forma:
 result_columns = base_columns + [
+    # Métricas derivadas
     'Quality_Impressions', 'QCPM_calculated',
-    'QCPM_ratio_norm', 'VIEWABILITY_ratio_norm', 'CVTR_ratio_norm', 'CTR_ratio_norm', 'ER_ratio_norm',
-    'QCPM_rank_raw', 'Quality_Impressions_rank_raw', 'VIEWABILITY_rank_raw',
-    'CVTR_rank_raw', 'CTR_rank_raw', 'ER_rank_raw',
-    'QCPM_rank_norm', 'Quality_Impressions_rank_norm', 'VIEWABILITY_rank_norm',
-    'CVTR_rank_norm', 'CTR_rank_norm', 'ER_rank_norm',
+    
+    # Ratios: para cada métrica se pone primero el ratio y luego su versión normalizada
+    'QCPM_ratio', 'QCPM_ratio_norm',
+    'VIEWABILITY_ratio', 'VIEWABILITY_ratio_norm',
+    'CVTR_ratio', 'CVTR_ratio_norm',
+    'CTR_ratio', 'CTR_ratio_norm',
+    'ER_ratio', 'ER_ratio_norm',
+    
+    # Rankings: para cada métrica se pone primero el ranking raw y luego el ranking normalizado
+    'QCPM_rank_raw', 'QCPM_rank_norm',
+    'Quality_Impressions_rank_raw', 'Quality_Impressions_rank_norm',
+    'VIEWABILITY_rank_raw', 'VIEWABILITY_rank_norm',
+    'CVTR_rank_raw', 'CVTR_rank_norm',
+    'CTR_rank_raw', 'CTR_rank_norm',
+    'ER_rank_raw', 'ER_rank_norm',
+    
+    # Resultados finales
     'final_score', 'performance_index'
 ]
+
+# Generar el DataFrame final para exportar
 result_df = df[result_columns]
 
 # Exportar a Excel con dos hojas:
