@@ -108,10 +108,12 @@ def compute_index(df, score_column):
     """
     Calcula el Performance Index normalizando el final_score (que ya incluye
     el factor de impresiones) dentro de cada grupo definido por GROUP_COLUMNS.
+    Se utiliza una normalización directa, de modo que el asset con el mayor
+    final_score obtenga un performance_index de 1.
     """
     epsilon = 1e-7
     df['performance_index'] = df.groupby(GROUP_COLUMNS)[score_column].transform(
-        lambda x: 1 - ((x - x.min()) / ((x.max() - x.min()) + epsilon))
+        lambda x: (x - x.min()) / ((x.max() - x.min()) + epsilon)
     )
     return df
 
@@ -327,7 +329,7 @@ def asignar_grupo(row):
 campaign_groups['Grupo'] = campaign_groups.apply(asignar_grupo, axis=1)
 
 # =============================================================================
-# 8B. Cálculo de Estadísticos Robustoss por Grupo
+# 8B. Cálculo de Estadísticos Robustos por Grupo
 # =============================================================================
 # Calcular la mediana del final_score para cada campaña
 # (final_score ya incluye el factor de impresiones)
