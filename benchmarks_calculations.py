@@ -91,24 +91,19 @@ campaign_df['QCPM_calculated'] = np.where(
 # ==========================
 # Agrupación y Cálculo de Benchmarks
 # ==========================
+
 # Definir las columnas de agrupación
 group_cols = ['PLATFORM', 'STAGE', 'FORMAT']
 
-# Definir las métricas mediante un mapeo: (nombre_output, nombre_origen)
-# Para QCPM se usa "QCPM_calculated" internamente, pero se mostrará como "QCPM"
-metrics = [
-    ('CPM', 'CPM'),
-    ('VIEWABILITY', 'VIEWABILITY'),
-    ('CVTR', 'CVTR'),
-    ('CTR', 'CTR'),
-    ('ER', 'ER'),
-    ('QCPM', 'QCPM_calculated')
-]
+# Lista de métricas para las cuales se calcularán la mediana y el MAD
+# Incluye QCPM_calculated para que se trate de la misma forma que las demás métricas.
+metrics = ['CPM', 'VIEWABILITY', 'CVTR', 'CTR', 'ER', 'QCPM_calculated']
 
-# Crear diccionario de agregación: para cada métrica se calculará la mediana y el MAD
+# Crear un diccionario para la agregación:
+# Para cada métrica se calculará la mediana y el MAD.
 agg_dict = {}
-for output_name, source_name in metrics:
-    agg_dict[source_name] = ['median', mad]
+for metric in metrics:
+    agg_dict[metric] = ['median', mad]
 
 # Agrupar el DataFrame original y aplicar las funciones de agregación definidas
 benchmarks = campaign_df.groupby(group_cols).agg(agg_dict)
@@ -117,39 +112,32 @@ benchmarks = campaign_df.groupby(group_cols).agg(agg_dict)
 benchmarks.columns = ['_'.join(col).strip() for col in benchmarks.columns.values]
 benchmarks = benchmarks.reset_index()
 
-# Renombrar las columnas para que queden en el formato deseado:
-# Se renombra "source_median" a "output_median" y "source_mad" a "MAD_output"
-for output_name, source_name in metrics:
+# Renombrar la columna del MAD para que tenga el formato 'MAD_<Métrica>'
+for metric in metrics:
     benchmarks.rename(columns={
-        f"{source_name}_median": f"{output_name}_median",
-        f"{source_name}_mad": f"MAD_{output_name}"
+        f"{metric}_mad": f"MAD_{metric}"
     }, inplace=True)
 
 # Calcular las métricas ajustadas sumando la mediana y el MAD para cada métrica
-for output_name, source_name in metrics:
-    col_median = f"{output_name}_median"
-    col_mad = f"MAD_{output_name}"
-    benchmarks[f"adjusted_{output_name}"] = benchmarks[col_median] + benchmarks[col_mad]
+for metric in metrics:
+    benchmarks[f"adjusted_{metric}"] = benchmarks[f"{metric}_median"] + benchmarks[f"MAD_{metric}"]
 
 # ==========================
 # Preparación de Datos para Exportación
 # ==========================
 
-# Lista de nombres de métricas de salida (ya renombradas)
-output_metrics = [output_name for output_name, _ in metrics]
-
 # Hoja 1: Benchmark Ajustado (solo columnas de valores ajustados)
-# Se incluyen también las columnas de agrupación.
-adjusted_cols = [f"adjusted_{metric}" for metric in output_metrics]
+# Se incluye también las columnas de agrupación.
+adjusted_cols = [f"adjusted_{metric}" for metric in metrics]
 benchmark_adjusted = benchmarks[group_cols + adjusted_cols].copy()
 # Renombrar las columnas ajustadas para quitar el prefijo 'adjusted_'
-rename_dict = {f"adjusted_{metric}": metric for metric in output_metrics}
+rename_dict = {f"adjusted_{metric}": metric for metric in metrics}
 benchmark_adjusted.rename(columns=rename_dict, inplace=True)
 
 # Hoja 2: Benchmark Completo (con columnas organizadas: mediana, MAD y ajustado para cada métrica)
 # Se crea un listado ordenado de columnas: primero las de agrupación y luego para cada métrica sus tres columnas.
 ordered_cols = group_cols.copy()
-for metric in output_metrics:
+for metric in metrics:
     ordered_cols.extend([f"{metric}_median", f"MAD_{metric}", f"adjusted_{metric}"])
 benchmark_complete = benchmarks[ordered_cols].copy()
 
