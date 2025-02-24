@@ -116,3 +116,39 @@ bumper
 youtube_non_skippable
 youtube_shorts
 youtube_skippable
+
+
+
+Slide 1: Benchmarking – Estableciendo Puntos de Referencia
+
+Objetivo: Definir valores de referencia (benchmarks) para evaluar el desempeño de los anuncios.
+Cómo se hace:
+Agrupación: Se dividen los datos por características clave (por ejemplo, plataforma, etapa y formato).
+Mediana: Identifica el valor central típico de cada métrica, representando el comportamiento "normal".
+MAD (Desviación Absoluta Mediana):
+Mide la variabilidad de los datos: es el valor medio de las diferencias absolutas entre cada dato y la mediana.
+Es robusto frente a valores extremos, es decir, no se ve influenciado por datos atípicos.
+Métrica Ajustada: Se suma la mediana y el MAD para obtener un benchmark que refleja tanto el rendimiento típico como su dispersión.
+Slide 2: Cálculo de Scores de Assets – Evaluando el Desempeño
+
+Evaluación Interna y Externa:
+Ranking Interno: Se ordenan los assets dentro de su grupo (campaña, etapa, plataforma y formato) según indicadores clave (por ejemplo, costo, visibilidad, interacción).
+Ratios con Benchmarks: Se compara el rendimiento real de cada asset frente al benchmark para cada métrica.
+Normalización y Combinación:
+Los rankings y ratios se transforman a una escala común (0 a 1) para ser comparables.
+Se promedian (50% ranking y 50% ratio) para obtener una medida combinada.
+Pesos Específicos y Factor de Impresiones:
+Se aplican pesos diferentes según el tipo de compra y si el asset es de video o estático.
+Se multiplica por un factor basado en el volumen de impresiones, dando mayor relevancia a aquellos con mayor alcance.
+Slide 3: Índice de Performance y Segmentación de Campañas
+
+Performance Index:
+Se normaliza el score final dentro de cada grupo para que el asset con mejor desempeño tenga un índice cercano a 1, facilitando comparaciones relativas.
+Segmentación de Campañas:
+Se agrupan las campañas según inversión total, variedad de formatos y número de plataformas.
+Se calculan estadísticas robustas:
+Mediana: Valor central de los puntajes en cada campaña.
+MAD: Indica cuánta variación existe respecto a la mediana de cada grupo, ayudando a entender la consistencia del rendimiento.
+Z-score Robusto:
+Mide cuán lejos se encuentra el rendimiento de una campaña del rendimiento típico de su grupo, tomando en cuenta la variabilidad (MAD).
+Un z-score cercano a 0 indica que la campaña está en línea con el rendimiento típico; valores altos o bajos muestran un desempeño significativamente mejor o peor, respectivamente.
