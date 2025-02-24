@@ -81,8 +81,8 @@ print_nan_info_before_after(campaign_df, "de campaña", numeric_columns)
 # Quality Impressions pondera las impresiones por la viewability para obtener una medida de calidad.
 campaign_df['Quality_Impressions'] = campaign_df['IMPRESSIONS'] * campaign_df['VIEWABILITY']
 
-# QCPM_calculated: Costo por mil impresiones de calidad. Se evita la división por cero.
-campaign_df['QCPM_calculated'] = np.where(
+# QCPM: Costo por mil impresiones de calidad. Se evita la división por cero.
+campaign_df['QCPM'] = np.where(
     campaign_df['Quality_Impressions'] != 0,
     (campaign_df['MEDIA_SPEND'] / campaign_df['Quality_Impressions']) * 1000,
     0
@@ -96,8 +96,8 @@ campaign_df['QCPM_calculated'] = np.where(
 group_cols = ['PLATFORM', 'STAGE', 'FORMAT']
 
 # Lista de métricas para las cuales se calcularán la mediana y el MAD
-# Incluye QCPM_calculated para que se trate de la misma forma que las demás métricas.
-metrics = ['CPM', 'VIEWABILITY', 'CVTR', 'CTR', 'ER', 'QCPM_calculated']
+# Incluye QCPM para que se trate de la misma forma que las demás métricas.
+metrics = ['CPM', 'VIEWABILITY', 'CVTR', 'CTR', 'ER', 'QCPM']
 
 # Crear un diccionario para la agregación:
 # Para cada métrica se calculará la mediana y el MAD.
