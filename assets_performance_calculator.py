@@ -1,16 +1,37 @@
-# Paso 0: Importar las bibliotecas necesarias
+# =============================================================================
+# METODOLOGÍA INTEGRAL: Evaluación de Assets y Campañas
+#
+# Esta metodología evalúa cada asset considerando:
+# 1. Desempeño interno (ranking dentro de la campaña, stage, plataforma y formato).
+# 2. Comparación frente a benchmarks externos.
+# 3. Pesos específicos según el PURCHASE_TYPE y formato (video o estático).
+# 4. Ajuste que prioriza assets con mayor volumen de impresiones.
+#
+# Además, se agruparán las campañas en función de:
+#   - Inversión Total: Baja (20–100M), Media (101–500M), Alta (501M en adelante).
+#   - Cantidad de Formatos: Poca Variedad (1–3), Variedad Moderada (4–10), Gran Variedad (11 en adelante).
+#   - Cantidad de Plataformas: Cobertura Limitada (1–2), Cobertura Moderada (3–4), Cobertura Amplia (5 en adelante).
+#
+# Se exportarán dos hojas en Excel:
+#   - Hoja 1: Resultados por Asset (incluye final_score y performance_index, además de los rankings raw).
+#   - Hoja 2: Resumen de Campañas (estadísticos robustos segmentados por grupo y la etiqueta de grupo).
+# =============================================================================
+
+# =============================================================================
+# Paso 0: Importar Bibliotecas y Configuración Inicial
+# =============================================================================
 import pandas as pd
 import numpy as np
 from google.colab import files
 
-# ==========================
-# Configuración del script
-# ==========================
-# Definir columnas de agrupación
+# Columnas para agrupar assets
 GROUP_COLUMNS = ['CAMPAIGN', 'STAGE', 'PLATFORM', 'FORMAT']
 
-# Definir columnas a normalizar
-COLUMNS_TO_NORMALIZE = ['CAMPAIGN', 'STAGE', 'PLATFORM', 'FORMAT', 'BRAND', 'CATEGORY', 'PURCHASE_TYPE', 'CREATIVE_NAME', 'AUDIENCE']
+# Columnas de texto a normalizar
+COLUMNS_TO_NORMALIZE = [
+    'CAMPAIGN', 'STAGE', 'PLATFORM', 'FORMAT',
+    'BRAND', 'CATEGORY', 'PURCHASE_TYPE', 'CREATIVE_NAME', 'AUDIENCE'
+]
 
 # Lista de formatos de video
 VIDEO_FORMATS = {
@@ -22,76 +43,101 @@ VIDEO_FORMATS = {
     'youtube_shorts', 'youtube_skippable'
 }
 
-# Definir pesos específicos para cada combinación de tipo de compra y formato (video/estático)
+# =============================================================================
+# Nuevo Diccionario de Pesos (sin IMPRESSIONS; suma de pesos = 1, escala de 5 en múltiplos de 0.125)
+# =============================================================================
 WEIGHTS_BY_TYPE_AND_FORMAT = {
-    ('cpa', 'video'): {'IMPRESSIONS': 0.15, 'QCPM': 0.2, 'VIEWABILITY': 0.25, 'CVTR': 0.15, 'CTR': 0.15, 'ER': 0.1},
-    ('cpa', 'static'): {'IMPRESSIONS': 0.25, 'QCPM': 0.3, 'VIEWABILITY': 0.35, 'CVTR': 0.0, 'CTR': 0.1, 'ER': 0.0},
-    ('cpc', 'video'): {'IMPRESSIONS': 0.1, 'QCPM': 0.1, 'VIEWABILITY': 0.2, 'CVTR': 0.4, 'CTR': 0.15, 'ER': 0.05},
-    ('cpc', 'static'): {'IMPRESSIONS': 0.2, 'QCPM': 0.15, 'VIEWABILITY': 0.3, 'CVTR': 0.0, 'CTR': 0.3, 'ER': 0.05},
-    ('cpcv', 'video'): {'IMPRESSIONS': 0.1, 'QCPM': 0.2, 'VIEWABILITY': 0.3, 'CVTR': 0.3, 'CTR': 0.05, 'ER': 0.05},
-    ('cpcv', 'static'): {'IMPRESSIONS': 0.2, 'QCPM': 0.25, 'VIEWABILITY': 0.35, 'CVTR': 0.0, 'CTR': 0.15, 'ER': 0.05},
-    ('cpl', 'video'): {'IMPRESSIONS': 0.1, 'QCPM': 0.15, 'VIEWABILITY': 0.25, 'CVTR': 0.35, 'CTR': 0.1, 'ER': 0.05},
-    ('cpl', 'static'): {'IMPRESSIONS': 0.3, 'QCPM': 0.3, 'VIEWABILITY': 0.25, 'CVTR': 0.0, 'CTR': 0.1, 'ER': 0.05},
-    ('cpm', 'video'): {'IMPRESSIONS': 0.2, 'QCPM': 0.25, 'VIEWABILITY': 0.25, 'CVTR': 0.15, 'CTR': 0.1, 'ER': 0.05},
-    ('cpm', 'static'): {'IMPRESSIONS': 0.35, 'QCPM': 0.3, 'VIEWABILITY': 0.2, 'CVTR': 0.0, 'CTR': 0.1, 'ER': 0.05},
-    ('cpv', 'video'): {'IMPRESSIONS': 0.15, 'QCPM': 0.2, 'VIEWABILITY': 0.3, 'CVTR': 0.25, 'CTR': 0.05, 'ER': 0.05},
-    ('cpv', 'static'): {'IMPRESSIONS': 0.25, 'QCPM': 0.25, 'VIEWABILITY': 0.3, 'CVTR': 0.0, 'CTR': 0.15, 'ER': 0.05},
-    ('top_view', 'video'): {'IMPRESSIONS': 0.15, 'QCPM': 0.15, 'VIEWABILITY': 0.35, 'CVTR': 0.25, 'CTR': 0.05, 'ER': 0.05},
-    ('top_view', 'static'): {'IMPRESSIONS': 0.2, 'QCPM': 0.2, 'VIEWABILITY': 0.4, 'CVTR': 0.0, 'CTR': 0.15, 'ER': 0.05},
-    'default': {'IMPRESSIONS': 0.2, 'QCPM': 0.2, 'VIEWABILITY': 0.2, 'CVTR': 0.2, 'CTR': 0.1, 'ER': 0.1}
+    ('cpa', 'video'): {'QCPM': 0.25, 'VIEWABILITY': 0.25, 'CVTR': 0.25, 'CTR': 0.125, 'ER': 0.125},
+    ('cpa', 'static'): {'QCPM': 0.375, 'VIEWABILITY': 0.5, 'CVTR': 0.0, 'CTR': 0.125, 'ER': 0.0},
+    ('cpc', 'video'): {'QCPM': 0.125, 'VIEWABILITY': 0.25, 'CVTR': 0.5, 'CTR': 0.125, 'ER': 0.0},
+    ('cpc', 'static'): {'QCPM': 0.25, 'VIEWABILITY': 0.375, 'CVTR': 0.0, 'CTR': 0.25, 'ER': 0.125},
+    ('cpcv', 'video'): {'QCPM': 0.25, 'VIEWABILITY': 0.375, 'CVTR': 0.375, 'CTR': 0.0, 'ER': 0.0},
+    ('cpcv', 'static'): {'QCPM': 0.375, 'VIEWABILITY': 0.375, 'CVTR': 0.0, 'CTR': 0.125, 'ER': 0.125},
+    ('cpl', 'video'): {'QCPM': 0.125, 'VIEWABILITY': 0.25, 'CVTR': 0.375, 'CTR': 0.125, 'ER': 0.125},
+    ('cpl', 'static'): {'QCPM': 0.5, 'VIEWABILITY': 0.375, 'CVTR': 0.0, 'CTR': 0.125, 'ER': 0.0},
+    ('cpm', 'video'): {'QCPM': 0.375, 'VIEWABILITY': 0.375, 'CVTR': 0.125, 'CTR': 0.125, 'ER': 0.0},
+    ('cpm', 'static'): {'QCPM': 0.5, 'VIEWABILITY': 0.375, 'CVTR': 0.0, 'CTR': 0.125, 'ER': 0.0},
+    ('cpv', 'video'): {'QCPM': 0.25, 'VIEWABILITY': 0.375, 'CVTR': 0.25, 'CTR': 0.125, 'ER': 0.0},
+    ('cpv', 'static'): {'QCPM': 0.375, 'VIEWABILITY': 0.375, 'CVTR': 0.0, 'CTR': 0.25, 'ER': 0.0},
+    ('top_view', 'video'): {'QCPM': 0.25, 'VIEWABILITY': 0.375, 'CVTR': 0.25, 'CTR': 0.125, 'ER': 0.0},
+    ('top_view', 'static'): {'QCPM': 0.25, 'VIEWABILITY': 0.5, 'CVTR': 0.0, 'CTR': 0.125, 'ER': 0.125},
+    'default': {'QCPM': 0.25, 'VIEWABILITY': 0.25, 'CVTR': 0.25, 'CTR': 0.125, 'ER': 0.125}
 }
 
-# Factor de penalización para Quality_Impressions menores a 1000
-PENALTY_FACTOR = 1.5
+# =============================================================================
+# Funciones Globales de Normalización
+# =============================================================================
+def min_max_normalize(series):
+    """
+    Normaliza una serie numérica usando Min-Max:
+    (x - min) / (max - min). Si max == min, retorna 0.
+    """
+    min_val = series.min()
+    max_val = series.max()
+    if max_val == min_val:
+        return series.apply(lambda x: 0)
+    return (series - min_val) / (max_val - min_val)
 
-# ==========================
-# Funciones de utilidad
-# ==========================
+def normalize_ranking(series):
+    """
+    Normaliza una serie de rankings usando:
+      ranking_norm = 1 - ((rank - 1) / (N - 1))
+    donde N es el número de elementos. Si N <= 1, retorna 1.
+    """
+    N = series.count()
+    if N <= 1:
+        return series.apply(lambda x: 1)
+    return 1 - ((series - 1) / (N - 1))
+
+# =============================================================================
+# Otras Funciones de Utilidad
+# =============================================================================
 def normalize_text(series):
-    """Normaliza el texto eliminando espacios, pasando a minúsculas y reemplazando espacios con guiones bajos."""
+    """Normaliza el texto: elimina espacios, convierte a minúsculas y reemplaza espacios por guiones bajos."""
     return series.str.strip().str.lower().str.replace(' ', '_')
 
 def convert_series(series):
-    """Convierte valores de series a numéricos, eliminando separadores de miles y convirtiendo porcentajes."""
+    """Convierte una serie a valores numéricos: elimina separadores de miles y convierte porcentajes."""
     if series.dtype == 'object':
-        series = series.fillna('0')  # Reemplazar celdas vacías por '0'
-        series = series.str.replace(',', '')  # Eliminar separadores de miles
+        series = series.fillna('0')
+        series = series.str.replace(',', '')
         series = series.apply(lambda x: float(x.replace('%', '')) / 100 if isinstance(x, str) and '%' in x else x)
-    return pd.to_numeric(series, errors='coerce').fillna(0)  # Convertir a numérico y manejar NaN
+    return pd.to_numeric(series, errors='coerce').fillna(0)
 
 def compute_index(df, score_column):
-    """Calcula el performance index usando fórmula min-max dentro de grupos definidos."""
+    """
+    Calcula el Performance Index normalizando el final_score (que ya incluye
+    el factor de impresiones) dentro de cada grupo definido por GROUP_COLUMNS.
+    """
     epsilon = 1e-7
     df['performance_index'] = df.groupby(GROUP_COLUMNS)[score_column].transform(
-        lambda x: 1.0 if (x.max() == x.min()) else (1 - (x - x.min()) / ((x.max() - x.min()) + epsilon))
+        lambda x: 1 - ((x - x.min()) / ((x.max() - x.min()) + epsilon))
     )
     return df
 
 def print_nan_info_before_after(df, file_name, numeric_columns):
-    """Evaluar NaN antes y después de la transformación y descarga opcional de archivo."""
+    """Imprime información de NaN antes y después de la conversión numérica."""
     print(f"\nEvaluación de NaN en {file_name}:")
     nan_info_before = df[numeric_columns].isna().sum()
     print("Valores NaN antes de la conversión:")
-    for column, num_nan in nan_info_before.items():
-        print(f"- Columna {column}: {num_nan} valores NaN")
-
+    for col, num in nan_info_before.items():
+        print(f"- {col}: {num}")
     df[numeric_columns] = df[numeric_columns].apply(convert_series)
-
     nan_info_after = df[numeric_columns].isna().sum()
     print("Valores NaN después de la conversión:")
-    for column, num_nan in nan_info_after.items():
-        print(f"- Columna {column}: {num_nan} valores NaN")
+    for col, num in nan_info_after.items():
+        print(f"- {col}: {num}")
 
 def calculate_final_score(row):
-    """Calcula el score final usando los pesos específicos según el tipo de compra y el formato."""
-    # Determinar el formato del contenido: "video" o "static"
+    """
+    Calcula el Puntaje Final de un asset aplicando los pesos específicos según
+    el PURCHASE_TYPE y el formato (video o static). Se omite Quality_Impressions
+    en la suma, pues su impacto se refleja mediante el factor de impresiones.
+    """
     format_type = 'video' if row['FORMAT'] in VIDEO_FORMATS else 'static'
-
-    # Obtener pesos según el tipo de compra y formato
-    weights = WEIGHTS_BY_TYPE_AND_FORMAT.get((row['PURCHASE_TYPE'], format_type), WEIGHTS_BY_TYPE_AND_FORMAT['default'])
-
+    weights = WEIGHTS_BY_TYPE_AND_FORMAT.get((row['PURCHASE_TYPE'], format_type),
+                                               WEIGHTS_BY_TYPE_AND_FORMAT['default'])
     return (
-        row['Quality_Impressions_rank'] * weights['IMPRESSIONS'] +
         row['QCPM_combined'] * weights['QCPM'] +
         row['VIEWABILITY_combined'] * weights['VIEWABILITY'] +
         row['CVTR_combined'] * weights['CVTR'] +
@@ -99,10 +145,9 @@ def calculate_final_score(row):
         row['ER_combined'] * weights['ER']
     )
 
-# ==========================
-# Procesamiento de datos
-# ==========================
-# Paso 1: Subir los archivos CSV
+# =============================================================================
+# 1. Preprocesamiento y Normalización de Datos
+# =============================================================================
 print("Sube el archivo CSV con los datos de campaña:")
 uploaded_campaign = files.upload()
 campaign_file = list(uploaded_campaign.keys())[0]
@@ -113,25 +158,23 @@ uploaded_bench = files.upload()
 bench_file = list(uploaded_bench.keys())[0]
 benchmark_df = pd.read_csv(bench_file)
 
-# Normalizar los valores de las columnas relevantes en el DataFrame de campaña
+# Normalizar columnas de texto
 campaign_df[COLUMNS_TO_NORMALIZE] = campaign_df[COLUMNS_TO_NORMALIZE].apply(normalize_text)
-
-# Normalizar solo las columnas presentes en ambos DataFrames
 common_columns = benchmark_df.columns.intersection(COLUMNS_TO_NORMALIZE)
 benchmark_df[common_columns] = benchmark_df[common_columns].apply(normalize_text)
 
-# Definición de columnas numéricas
+# Definir columnas numéricas
 campaign_numeric_cols = [
     'IMPRESSIONS', 'VIDEO_VIEWS', 'COMPLETE_VIEWS', 'CLICS', 'COMMENTS',
-    'INTERACTIONS', 'SHARES', 'REACH', 'MEDIA_SPEND', 'CPM', 'VTR', 'CVTR', 'CTR', 'ER', 'VIEWABILITY'
+    'INTERACTIONS', 'SHARES', 'REACH', 'MEDIA_SPEND', 'CPM', 'VTR',
+    'CVTR', 'CTR', 'ER', 'VIEWABILITY'
 ]
 bench_numeric_cols = ['QCPM', 'VIEWABILITY', 'CVTR', 'CTR', 'ER']
 
-# Conversión de columnas y evaluación de NaN
 print_nan_info_before_after(campaign_df, "de campaña", campaign_numeric_cols)
 print_nan_info_before_after(benchmark_df, "de benchmarks", bench_numeric_cols)
 
-# Cálculos adicionales y combinaciones
+# Calcular métricas derivadas
 campaign_df['Quality_Impressions'] = campaign_df['IMPRESSIONS'] * campaign_df['VIEWABILITY']
 campaign_df['QCPM_calculated'] = np.where(
     campaign_df['Quality_Impressions'] != 0,
@@ -139,37 +182,75 @@ campaign_df['QCPM_calculated'] = np.where(
     0
 )
 
+# =============================================================================
+# 2. Fusión de Datos y Cálculo de Ratios con Benchmarks
+# =============================================================================
 df = pd.merge(campaign_df, benchmark_df, on=['PLATFORM', 'STAGE'], how='left', suffixes=("", "_bench"))
 
-# Cálculo de ratios y rankings
+# Calcular ratios:
+# Si "menor es mejor" (CPM, QCPM): Ratio = Benchmark / Valor asset
 df['QCPM_ratio'] = np.where(df['QCPM_calculated'] != 0, df['QCPM'] / df['QCPM_calculated'], 0)
+# Si "mayor es mejor" (IMPRESSIONS, Quality_Impressions, CVTR, CTR, ER): Ratio = Valor asset / Benchmark
 df['VIEWABILITY_ratio'] = np.where(df['VIEWABILITY_bench'] != 0, df['VIEWABILITY'] / df['VIEWABILITY_bench'], 0)
 df['CVTR_ratio'] = np.where(df['CVTR_bench'] != 0, df['CVTR'] / df['CVTR_bench'], 0)
 df['CTR_ratio'] = np.where(df['CTR_bench'] != 0, df['CTR'] / df['CTR_bench'], 0)
 df['ER_ratio'] = np.where(df['ER_bench'] != 0, df['ER'] / df['ER_bench'], 0)
 
-df['QCPM_rank'] = df.groupby(GROUP_COLUMNS)['QCPM_calculated'].rank(method='min', ascending=True)
-df['Quality_Impressions_rank'] = df.groupby(GROUP_COLUMNS)['Quality_Impressions'].rank(method='min', ascending=False)
-df['VIEWABILITY_rank'] = df.groupby(GROUP_COLUMNS)['VIEWABILITY'].rank(method='min', ascending=False)
-df['CVTR_rank'] = df.groupby(GROUP_COLUMNS)['CVTR'].rank(method='min', ascending=False)
-df['CTR_rank'] = df.groupby(GROUP_COLUMNS)['CTR'].rank(method='min', ascending=False)
-df['ER_rank'] = df.groupby(GROUP_COLUMNS)['ER'].rank(method='min', ascending=False)
+# Normalizar los ratios usando Min-Max
+df['QCPM_ratio_norm'] = min_max_normalize(df['QCPM_ratio'])
+df['VIEWABILITY_ratio_norm'] = min_max_normalize(df['VIEWABILITY_ratio'])
+df['CVTR_ratio_norm'] = min_max_normalize(df['CVTR_ratio'])
+df['CTR_ratio_norm'] = min_max_normalize(df['CTR_ratio'])
+df['ER_ratio_norm'] = min_max_normalize(df['ER_ratio'])
 
-# Combinación de rankings y ratios
-df['QCPM_combined'] = 0.5 * df['QCPM_rank'] + 0.5 * df['QCPM_ratio']
-df['VIEWABILITY_combined'] = 0.5 * df['VIEWABILITY_rank'] + 0.5 * df['VIEWABILITY_ratio']
-df['CVTR_combined'] = 0.5 * df['CVTR_rank'] + 0.5 * df['CVTR_ratio']
-df['CTR_combined'] = 0.5 * df['CTR_rank'] + 0.5 * df['CTR_ratio']
-df['ER_combined'] = 0.5 * df['ER_rank'] + 0.5 * df['ER_ratio']
+# =============================================================================
+# 3. Cálculo del Ranking Interno (Contexto de Campaña)
+# =============================================================================
+# Asignar ranking raw por cada métrica dentro de GROUP_COLUMNS
+df['QCPM_rank_raw'] = df.groupby(GROUP_COLUMNS)['QCPM_calculated'].rank(method='min', ascending=True)
+df['Quality_Impressions_rank_raw'] = df.groupby(GROUP_COLUMNS)['Quality_Impressions'].rank(method='min', ascending=False)
+df['VIEWABILITY_rank_raw'] = df.groupby(GROUP_COLUMNS)['VIEWABILITY'].rank(method='min', ascending=False)
+df['CVTR_rank_raw'] = df.groupby(GROUP_COLUMNS)['CVTR'].rank(method='min', ascending=False)
+df['CTR_rank_raw'] = df.groupby(GROUP_COLUMNS)['CTR'].rank(method='min', ascending=False)
+df['ER_rank_raw'] = df.groupby(GROUP_COLUMNS)['ER'].rank(method='min', ascending=False)
 
-# Cálculo del score final
+# Normalizar los rankings usando la función global
+df['QCPM_rank_norm'] = df.groupby(GROUP_COLUMNS)['QCPM_rank_raw'].transform(normalize_ranking)
+df['Quality_Impressions_rank_norm'] = df.groupby(GROUP_COLUMNS)['Quality_Impressions_rank_raw'].transform(normalize_ranking)
+df['VIEWABILITY_rank_norm'] = df.groupby(GROUP_COLUMNS)['VIEWABILITY_rank_raw'].transform(normalize_ranking)
+df['CVTR_rank_norm'] = df.groupby(GROUP_COLUMNS)['CVTR_rank_raw'].transform(normalize_ranking)
+df['CTR_rank_norm'] = df.groupby(GROUP_COLUMNS)['CTR_rank_raw'].transform(normalize_ranking)
+df['ER_rank_norm'] = df.groupby(GROUP_COLUMNS)['ER_rank_raw'].transform(normalize_ranking)
+
+# =============================================================================
+# 4. Combinación de Ranking Interno y Ratios Benchmark a Nivel de Métrica
+# =============================================================================
+# Combinar cada métrica: 50% ranking normalizado + 50% ratio normalizado
+df['QCPM_combined'] = 0.5 * df['QCPM_rank_norm'] + 0.5 * df['QCPM_ratio_norm']
+df['VIEWABILITY_combined'] = 0.5 * df['VIEWABILITY_rank_norm'] + 0.5 * df['VIEWABILITY_ratio_norm']
+df['CVTR_combined'] = 0.5 * df['CVTR_rank_norm'] + 0.5 * df['CVTR_ratio_norm']
+df['CTR_combined'] = 0.5 * df['CTR_rank_norm'] + 0.5 * df['CTR_ratio_norm']
+df['ER_combined'] = 0.5 * df['ER_rank_norm'] + 0.5 * df['ER_ratio_norm']
+
+# =============================================================================
+# 5. Aplicación de Pesos Específicos según Purchase Type y Formato
+# =============================================================================
 df['final_score'] = df.apply(calculate_final_score, axis=1)
-df.loc[df['Quality_Impressions'] < 1000, 'final_score'] *= PENALTY_FACTOR  # Penalización
 
-# Cálculo del índice de performance_index
+# =============================================================================
+# 6. Incorporación de un Factor de Impresiones
+# =============================================================================
+# Calcular el factor de impresiones: (IMPRESSIONS del asset) / (máximo de IMPRESSIONS en el grupo)
+df['impressions_factor'] = df.groupby(GROUP_COLUMNS)['IMPRESSIONS'].transform(lambda x: x / x.max())
+# Incorporar el factor de impresiones al final_score
+df['final_score'] = df['final_score'] * df['impressions_factor']
+
+# =============================================================================
+# 7. Cálculo del Performance Index (Hoja 1)
+# =============================================================================
 df = compute_index(df, 'final_score')
 
-# Redondear todas las columnas numéricas a 2 decimales
+# Redondear columnas numéricas para mayor claridad
 numeric_cols_to_round = [
     'IMPRESSIONS', 'VIDEO_VIEWS', 'COMPLETE_VIEWS', 'CLICS', 'COMMENTS',
     'INTERACTIONS', 'SHARES', 'REACH', 'MEDIA_SPEND', 'CPM', 'VTR',
@@ -179,9 +260,108 @@ numeric_cols_to_round = [
 ]
 df[numeric_cols_to_round] = df[numeric_cols_to_round].round(2)
 
-# ==========================
-# Exportación de resultados - Hoja 1
-# ==========================
+# =============================================================================
+# 8. Agrupación de Campañas para Hoja 2 (Segmentada por Grupo)
+# =============================================================================
+# Agrupar campañas para obtener:
+# - Total_MEDIA_SPEND: suma de MEDIA_SPEND de todos los assets de la campaña.
+# - Num_Formatos: número de formatos únicos usados en la campaña.
+# - Num_Plataformas: número de plataformas únicas usados en la campaña.
+campaign_groups = df.groupby('CAMPAIGN').agg({
+    'MEDIA_SPEND': 'sum',
+    'FORMAT': lambda x: x.nunique(),
+    'PLATFORM': lambda x: x.nunique()
+}).reset_index()
+
+# Renombrar columnas para mayor claridad
+campaign_groups.rename(columns={
+    'MEDIA_SPEND': 'Total_MEDIA_SPEND',
+    'FORMAT': 'Num_Formatos',
+    'PLATFORM': 'Num_Plataformas'
+}, inplace=True)
+
+# Función para asignar grupo a cada campaña
+def asignar_grupo(row):
+    """
+    Asigna un grupo a la campaña basado en:
+      - Inversión Total (Total_MEDIA_SPEND) en pesos colombianos:
+            Baja Inversión: 20,000,000 - 100,000,000
+            Media Inversión: 101,000,000 - 500,000,000
+            Alta Inversión: 501,000,000 en adelante
+      - Cantidad de Formatos (Num_Formatos):
+            Poca Variedad: 1–3
+            Variedad Moderada: 4–10
+            Gran Variedad: 11 en adelante
+      - Cantidad de Plataformas (Num_Plataformas):
+            Cobertura Limitada: 1–2
+            Cobertura Moderada: 3–4
+            Cobertura Amplia: 5 en adelante
+    """
+    inv = row['Total_MEDIA_SPEND']
+    if 20000000 <= inv <= 100000000:
+        grupo_inv = "Baja Inversión"
+    elif 101000000 <= inv <= 500000000:
+        grupo_inv = "Media Inversión"
+    else:
+        grupo_inv = "Alta Inversión"
+    
+    num_formatos = row['Num_Formatos']
+    if 1 <= num_formatos <= 3:
+        grupo_format = "Poca Variedad"
+    elif 4 <= num_formatos <= 10:
+        grupo_format = "Variedad Moderada"
+    else:
+        grupo_format = "Gran Variedad"
+    
+    num_plataformas = row['Num_Plataformas']
+    if 1 <= num_plataformas <= 2:
+        grupo_plat = "Cobertura Limitada"
+    elif 3 <= num_plataformas <= 4:
+        grupo_plat = "Cobertura Moderada"
+    else:
+        grupo_plat = "Cobertura Amplia"
+    
+    return f"{grupo_inv} – {grupo_format} – {grupo_plat}"
+
+# Aplicar la función para asignar grupos
+campaign_groups['Grupo'] = campaign_groups.apply(asignar_grupo, axis=1)
+
+# =============================================================================
+# 8B. Cálculo de Estadísticos Robustoss por Grupo
+# =============================================================================
+# Calcular la mediana del final_score para cada campaña
+# (final_score ya incluye el factor de impresiones)
+campaign_summary = df.groupby('CAMPAIGN')['final_score'].median().reset_index()
+campaign_summary.rename(columns={'final_score': 'median_score'}, inplace=True)
+
+# Fusionar con la información de grupos
+campaign_summary = pd.merge(campaign_summary, campaign_groups[['CAMPAIGN', 'Grupo']], on='CAMPAIGN', how='left')
+
+# Calcular estadísticos robustos por grupo:
+# Agrupar por 'Grupo' para obtener la mediana de las medianas
+group_stats = campaign_summary.groupby('Grupo')['median_score'].agg(group_median='median').reset_index()
+
+# Función para calcular el MAD robusto
+def compute_mad(x):
+    med = np.median(x)
+    return np.median(np.abs(x - med))
+
+# Calcular el MAD para cada grupo
+group_mad = campaign_summary.groupby('Grupo')['median_score'].apply(compute_mad).reset_index()
+group_mad.rename(columns={'median_score': 'group_mad'}, inplace=True)
+
+# Fusionar los estadísticos de grupo con el resumen de campañas
+campaign_summary = pd.merge(campaign_summary, group_stats, on='Grupo', how='left')
+campaign_summary = pd.merge(campaign_summary, group_mad, on='Grupo', how='left')
+
+# Calcular el z-score robusto para cada campaña dentro de su grupo
+epsilon = 1e-7
+campaign_summary['z_score'] = (campaign_summary['median_score'] - campaign_summary['group_median']) / (campaign_summary['group_mad'] + epsilon)
+
+# =============================================================================
+# 9. Exportación de Resultados a Excel
+# =============================================================================
+# Definir columnas para Hoja 1 (Assets); se incluyen los _rank_raw para referencia
 base_columns = [
     'MONTH', 'PLATFORM', 'CREATIVE_ID', 'CREATIVE_NAME', 'CAMPAIGN', 'BRAND',
     'STAGE', 'AUDIENCE', 'FORMAT', 'CATEGORY', 'PURCHASE_TYPE',
@@ -190,34 +370,20 @@ base_columns = [
     'CVTR', 'CTR', 'ER', 'VIEWABILITY'
 ]
 result_columns = base_columns + [
-    'Quality_Impressions', 'QCPM_calculated', 'QCPM_ratio', 'VIEWABILITY_ratio',
-    'CVTR_ratio', 'CTR_ratio', 'ER_ratio', 'Quality_Impressions_rank',
-    'QCPM_rank', 'VIEWABILITY_rank', 'CVTR_rank', 'CTR_rank', 'ER_rank',
+    'Quality_Impressions', 'QCPM_calculated',
+    'QCPM_ratio_norm', 'VIEWABILITY_ratio_norm', 'CVTR_ratio_norm', 'CTR_ratio_norm', 'ER_ratio_norm',
+    'QCPM_rank_raw', 'Quality_Impressions_rank_raw', 'VIEWABILITY_rank_raw',
+    'CVTR_rank_raw', 'CTR_rank_raw', 'ER_rank_raw',
+    'QCPM_rank_norm', 'Quality_Impressions_rank_norm', 'VIEWABILITY_rank_norm',
+    'CVTR_rank_norm', 'CTR_rank_norm', 'ER_rank_norm',
     'final_score', 'performance_index'
 ]
-
 result_df = df[result_columns]
 
-# ==========================
-# Calcular Z-scores usando Median y MAD - Hoja 2
-# ==========================
-# Calcular la Mediana de `final_scores` para cada campaña
-campaign_median_summary = df.groupby('CAMPAIGN')['final_score'].median().reset_index()
-campaign_median_summary = campaign_median_summary.rename(columns={'final_score': 'median_score'})
-
-# Cálculo del MAD (Desviación Absoluta Mediana)
-mad = np.median(np.abs(campaign_median_summary['median_score'] - campaign_median_summary['median_score'].median()))
-
-# Calcular z-score basado en Mediana y MAD
-campaign_median_summary['z_score'] = (campaign_median_summary['median_score'] - campaign_median_summary['median_score'].median()) / mad
-
-# Exportación de resultados a Excel con dos hojas
+# Exportar a Excel con dos hojas:
 with pd.ExcelWriter("final_results.xlsx", engine='openpyxl') as writer:
-    # Hoja 1: Resultados por Asset
     result_df.to_excel(writer, sheet_name='Resultados por Asset', index=False)
-
-    # Hoja 2: Resumen de Campañas basado en Mediana
-    campaign_median_summary.to_excel(writer, sheet_name='Resumen de Campañas', index=False)
+    campaign_summary.to_excel(writer, sheet_name='Resumen de Campañas', index=False)
 
 print("El archivo final ha sido guardado como 'final_results.xlsx'")
 files.download("final_results.xlsx")
