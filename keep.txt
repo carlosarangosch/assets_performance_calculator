@@ -1,33 +1,118 @@
 keep
 MONTH	PLATFORM	CREATIVE_ID	CREATIVE_NAME	CAMPAIGN	BRAND	STAGE	AUDIENCE	FORMAT	CATEGORY	PURCHASE_TYPE	IMPRESSIONS	VIDEO_VIEWS	COMPLETE_VIEWS	CLICS	COMMENTS	INTERACTIONS	SHARES	REACH	MEDIA_SPEND	CPM	VTR	CVTR	CTR	ER	VIEWABILITY
 
+PLATFORM	STAGE	FORMAT	CPM	VIEWABILITY	CVTR	CTR	ER	QCPM
 
----------------------------------------------------------------------------
-KeyError                                  Traceback (most recent call last)
-/usr/local/lib/python3.11/dist-packages/pandas/core/indexes/base.py in get_loc(self, key)
-   3804         try:
--> 3805             return self._engine.get_loc(casted_key)
-   3806         except KeyError as err:
+ATTN
+CONS
 
-index.pyx in pandas._libs.index.IndexEngine.get_loc()
+DV360
+FACEBOOK
+INSTAGRAM
+MESSENGER
+PC
+PINTEREST
+TIKTOK
+YOUTUBE
 
-index.pyx in pandas._libs.index.IndexEngine.get_loc()
-
-pandas/_libs/hashtable_class_helper.pxi in pandas._libs.hashtable.PyObjectHashTable.get_item()
-
-pandas/_libs/hashtable_class_helper.pxi in pandas._libs.hashtable.PyObjectHashTable.get_item()
-
-KeyError: 'MAD_CPM'
-
-The above exception was the direct cause of the following exception:
-
-KeyError                                  Traceback (most recent call last)
-2 frames
-/usr/local/lib/python3.11/dist-packages/pandas/core/indexes/base.py in get_loc(self, key)
-   3810             ):
-   3811                 raise InvalidIndexError(key)
--> 3812             raise KeyError(key) from err
-   3813         except TypeError:
-   3814             # If we have a listlike key, _check_indexing_error will raise
-
-KeyError: 'MAD_CPM'
+160x600
+300x250
+300x600
+320x250
+320x480
+320x50
+600x600
+728x90
+bumper
+online_video
+standard_banner
+trueview
+160x600
+250x250
+300x250
+300x600
+320x480
+320x50
+427x67
+728x90
+bumper
+online_video
+rich_media
+swipe
+canvas
+carousel
+carousel_static
+carousel_video
+in_feed_video
+instagram_stories
+page_post_link_ad
+page_post_static_ad
+page_post_video_ad
+placement_optimization_static
+placement_optimization_video
+static
+stories
+stories_video
+canvas
+carousel
+carousel_static
+carousel_video
+in_feed_video
+instagram_reels
+instagram_stories
+page_post_static_ad
+page_post_video_ad
+placement_optimization_static
+placement_optimization_video
+static
+stories
+stories_video
+stories_video_carrousel
+canvas
+carousel
+carousel_static
+carousel_video
+in_feed_video
+instagram_stories
+page_post_link_ad
+page_post_static_ad
+page_post_video_ad
+placement_optimization_static
+placement_optimization_video
+static
+stories
+stories_video
+canvas
+carousel
+carousel_static
+carousel_video
+in_feed_video
+instagram_reels
+instagram_stories
+page_post_static_ad
+page_post_video_ad
+placement_optimization_static
+placement_optimization_video
+static
+stories
+stories_video
+stories_video_carrousel
+stories
+page_post_static_ad
+0
+in_feed_video
+social_video
+in_feed_video
+instagram_feed_video
+tiktok_video
+topview
+in_feed_video
+tiktok_video
+bumper
+youtube_for_reach
+youtube_masthead
+youtube_skippable
+bumper
+youtube_non_skippable
+youtube_shorts
+youtube_skippable
