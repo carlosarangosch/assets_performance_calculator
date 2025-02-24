@@ -190,20 +190,20 @@ campaign_df['QCPM_calculated'] = np.where(
 df = pd.merge(campaign_df, benchmark_df, on=['PLATFORM', 'STAGE'], how='left', suffixes=("", "_bench"))
 
 # Calcular ratios:
-# Si "menor es mejor" (CPM, QCPM): Ratio = Benchmark / Valor asset
+# Para métricas donde "menor es mejor" (ej. QCPM): Ratio = Benchmark / Valor asset
 df['QCPM_ratio'] = np.where(df['QCPM_calculated'] != 0, df['QCPM'] / df['QCPM_calculated'], 0)
-# Si "mayor es mejor" (IMPRESSIONS, Quality_Impressions, CVTR, CTR, ER): Ratio = Valor asset / Benchmark
+# Para métricas donde "mayor es mejor" (ej. VIEWABILITY, CVTR, CTR, ER): Ratio = Valor asset / Benchmark
 df['VIEWABILITY_ratio'] = np.where(df['VIEWABILITY_bench'] != 0, df['VIEWABILITY'] / df['VIEWABILITY_bench'], 0)
 df['CVTR_ratio'] = np.where(df['CVTR_bench'] != 0, df['CVTR'] / df['CVTR_bench'], 0)
 df['CTR_ratio'] = np.where(df['CTR_bench'] != 0, df['CTR'] / df['CTR_bench'], 0)
 df['ER_ratio'] = np.where(df['ER_bench'] != 0, df['ER'] / df['ER_bench'], 0)
 
-# Normalizar los ratios usando Min-Max
-df['QCPM_ratio_norm'] = min_max_normalize(df['QCPM_ratio'])
-df['VIEWABILITY_ratio_norm'] = min_max_normalize(df['VIEWABILITY_ratio'])
-df['CVTR_ratio_norm'] = min_max_normalize(df['CVTR_ratio'])
-df['CTR_ratio_norm'] = min_max_normalize(df['CTR_ratio'])
-df['ER_ratio_norm'] = min_max_normalize(df['ER_ratio'])
+# Normalizar los ratios usando Min-Max por grupo
+df['QCPM_ratio_norm'] = df.groupby(GROUP_COLUMNS)['QCPM_ratio'].transform(min_max_normalize)
+df['VIEWABILITY_ratio_norm'] = df.groupby(GROUP_COLUMNS)['VIEWABILITY_ratio'].transform(min_max_normalize)
+df['CVTR_ratio_norm'] = df.groupby(GROUP_COLUMNS)['CVTR_ratio'].transform(min_max_normalize)
+df['CTR_ratio_norm'] = df.groupby(GROUP_COLUMNS)['CTR_ratio'].transform(min_max_normalize)
+df['ER_ratio_norm'] = df.groupby(GROUP_COLUMNS)['ER_ratio'].transform(min_max_normalize)
 
 # =============================================================================
 # 3. Cálculo del Ranking Interno (Contexto de Campaña)
@@ -216,7 +216,7 @@ df['CVTR_rank_raw'] = df.groupby(GROUP_COLUMNS)['CVTR'].rank(method='min', ascen
 df['CTR_rank_raw'] = df.groupby(GROUP_COLUMNS)['CTR'].rank(method='min', ascending=False)
 df['ER_rank_raw'] = df.groupby(GROUP_COLUMNS)['ER'].rank(method='min', ascending=False)
 
-# Normalizar los rankings usando la función global
+# Normalizar los rankings usando la función global (por grupo)
 df['QCPM_rank_norm'] = df.groupby(GROUP_COLUMNS)['QCPM_rank_raw'].transform(normalize_ranking)
 df['Quality_Impressions_rank_norm'] = df.groupby(GROUP_COLUMNS)['Quality_Impressions_rank_raw'].transform(normalize_ranking)
 df['VIEWABILITY_rank_norm'] = df.groupby(GROUP_COLUMNS)['VIEWABILITY_rank_raw'].transform(normalize_ranking)
@@ -268,7 +268,7 @@ df[numeric_cols_to_round] = df[numeric_cols_to_round].round(2)
 # Agrupar campañas para obtener:
 # - Total_MEDIA_SPEND: suma de MEDIA_SPEND de todos los assets de la campaña.
 # - Num_Formatos: número de formatos únicos usados en la campaña.
-# - Num_Plataformas: número de plataformas únicas usados en la campaña.
+# - Num_Plataformas: número de plataformas únicos usados en la campaña.
 campaign_groups = df.groupby('CAMPAIGN').agg({
     'MEDIA_SPEND': 'sum',
     'FORMAT': lambda x: x.nunique(),
