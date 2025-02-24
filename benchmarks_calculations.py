@@ -1,0 +1,134 @@
+# ==========================
+# Importación de bibliotecas
+# ==========================
+import pandas as pd
+import numpy as np
+from google.colab import files
+
+# ==========================
+# Funciones de Utilidad
+# ==========================
+
+def normalize_text(series):
+    """
+    Normaliza el texto eliminando espacios al inicio y final, convirtiendo a minúsculas 
+    y reemplazando espacios intermedios con guiones bajos.
+    """
+    return series.str.strip().str.lower().str.replace(' ', '_')
+
+def convert_series(series):
+    """
+    Convierte los valores de una serie a numéricos.
+    - Rellena los valores nulos con '0'
+    - Elimina separadores de miles
+    - Convierte cadenas con porcentajes dividiéndolos por 100
+    - Finalmente, convierte la serie a tipo numérico y reemplaza NaN por 0.
+    """
+    if series.dtype == 'object':
+        series = series.fillna('0')
+        series = series.str.replace(',', '')
+        series = series.apply(lambda x: float(x.replace('%', '')) / 100 if isinstance(x, str) and '%' in x else x)
+    return pd.to_numeric(series, errors='coerce').fillna(0)
+
+def print_nan_info_before_after(df, file_name, numeric_columns):
+    """
+    Muestra la cantidad de valores NaN en las columnas numéricas antes y después de la conversión.
+    """
+    print(f"\nEvaluación de NaN en {file_name}:")
+    nan_info_before = df[numeric_columns].isna().sum()
+    print("Valores NaN antes de la conversión:")
+    for column, num_nan in nan_info_before.items():
+        print(f"- Columna {column}: {num_nan} valores NaN")
+
+    # Aplicar conversión a numérico
+    df[numeric_columns] = df[numeric_columns].apply(convert_series)
+
+    nan_info_after = df[numeric_columns].isna().sum()
+    print("Valores NaN después de la conversión:")
+    for column, num_nan in nan_info_after.items():
+        print(f"- Columna {column}: {num_nan} valores NaN")
+
+def mad(series):
+    """
+    Calcula la Desviación Absoluta Mediana (MAD) de una serie.
+    MAD se define como la mediana de las diferencias absolutas entre cada valor y la mediana.
+    """
+    med = np.median(series)
+    return np.median(np.abs(series - med))
+
+# ==========================
+# Procesamiento de Datos
+# ==========================
+
+# Paso 1: Cargar el archivo CSV con los datos de campaña
+print("Sube el archivo CSV con los datos de campaña:")
+uploaded_campaign = files.upload()
+campaign_file = list(uploaded_campaign.keys())[0]
+campaign_df = pd.read_csv(campaign_file)
+
+# Paso 2: Normalizar las columnas de texto relevantes
+columns_to_normalize = ['PLATFORM', 'STAGE', 'FORMAT', 'BRAND', 'CATEGORY', 'PURCHASE_TYPE', 'CREATIVE_NAME', 'AUDIENCE']
+campaign_df[columns_to_normalize] = campaign_df[columns_to_normalize].apply(normalize_text)
+
+# Paso 3: Convertir las columnas numéricas a formato numérico
+numeric_columns = [
+    'IMPRESSIONS', 'VIDEO_VIEWS', 'COMPLETE_VIEWS', 'CLICS', 'COMMENTS',
+    'INTERACTIONS', 'SHARES', 'REACH', 'MEDIA_SPEND', 'CPM', 'VTR', 'CVTR', 'CTR', 'ER', 'VIEWABILITY'
+]
+print_nan_info_before_after(campaign_df, "de campaña", numeric_columns)
+
+# Paso 4: Calcular métricas adicionales
+# Quality Impressions pondera las impresiones por la viewability para obtener una medida de calidad.
+campaign_df['Quality_Impressions'] = campaign_df['IMPRESSIONS'] * campaign_df['VIEWABILITY']
+
+# QCPM_calculated: Costo por mil impresiones de calidad. Se evita la división por cero.
+campaign_df['QCPM_calculated'] = np.where(
+    campaign_df['Quality_Impressions'] != 0,
+    (campaign_df['MEDIA_SPEND'] / campaign_df['Quality_Impressions']) * 1000,
+    0
+)
+
+# ==========================
+# Agrupación y Cálculo de Benchmarks
+# ==========================
+
+# Se define el criterio de agrupación
+group_cols = ['PLATFORM', 'STAGE', 'FORMAT']
+
+# Lista de métricas para las cuales se calcularán la mediana y el MAD
+metrics = ['CPM', 'VIEWABILITY', 'CVTR', 'CTR', 'ER', 'QCPM_calculated']
+
+# Se crea un diccionario para la agregación, asignando a cada métrica
+# las funciones de mediana y la función mad definida.
+agg_dict = {}
+for metric in metrics:
+    agg_dict[metric] = ['median', mad]
+
+# Se agrupa el DataFrame original utilizando los criterios definidos
+benchmarks = campaign_df.groupby(group_cols).agg(agg_dict)
+
+# Se aplanan las columnas del DataFrame resultante (se creó un MultiIndex en columnas)
+benchmarks.columns = ['_'.join(col).strip() for col in benchmarks.columns.values]
+benchmarks = benchmarks.reset_index()
+
+# Renombramos las columnas para mayor claridad
+for metric in metrics:
+    benchmarks.rename(columns={
+        f"{metric}_median": f"{metric}_median",
+        f"{metric}_mad": f"MAD_{metric}"
+    }, inplace=True)
+    
+# Calcular las métricas ajustadas sumando la mediana y el MAD
+for metric in metrics:
+    benchmarks[f"adjusted_{metric}"] = benchmarks[f"{metric}_median"] + benchmarks[f"MAD_{metric}"]
+
+# ==========================
+# Exportación de Resultados
+# ==========================
+
+output_file = "benchmarks_results.xlsx"
+with pd.ExcelWriter(output_file, engine='openpyxl') as writer:
+    benchmarks.to_excel(writer, sheet_name='Benchmarks', index=False)
+
+print(f"\nEl archivo de benchmarks ha sido guardado como '{output_file}'")
+files.download(output_file)
