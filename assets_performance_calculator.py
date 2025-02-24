@@ -187,7 +187,8 @@ campaign_df['QCPM_calculated'] = np.where(
 # =============================================================================
 # 2. Fusión de Datos y Cálculo de Ratios con Benchmarks
 # =============================================================================
-df = pd.merge(campaign_df, benchmark_df, on=['PLATFORM', 'STAGE'], how='left', suffixes=("", "_bench"))
+# CAMBIO: Se añade 'FORMAT' en la fusión para alinear con el nuevo benchmark segmentado por PLATFORM, STAGE y FORMAT
+df = pd.merge(campaign_df, benchmark_df, on=['PLATFORM', 'STAGE', 'FORMAT'], how='left', suffixes=("", "_bench"))
 
 # Calcular ratios:
 # Para métricas donde "menor es mejor" (ej. QCPM): Ratio = Benchmark / Valor asset
